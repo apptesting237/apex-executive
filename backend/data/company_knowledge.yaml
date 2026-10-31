@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+from typing import Optional
+
+from pydantic import BaseModel
+
+
+class CompanyBriefingRequest(BaseModel):
+    question: str
+    context: Optional[str] = None
+    target_role: Optional[str] = "executive"
+
+
+class ApprovalRequest(BaseModel):
+    action: str
+    reason: str
+    entity_id: Optional[str] = None
+    requested_by: Optional[str] = "ceo"
+
+
+class VentureCreateRequest(BaseModel):
+    sector: str
+    title: str
+    projected_profit: float
+    status: Optional[str] = "draft"
+
+
+class DocumentDraftRequest(BaseModel):
+    title: str
+    body: str
+    owner: Optional[str] = "ceo"
+
+
+class AIChatRequest(BaseModel):
+    message: str
+    role: Optional[str] = "executive"
+    context: Optional[str] = None

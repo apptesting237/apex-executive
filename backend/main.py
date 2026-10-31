@@ -1,106 +1,354 @@
-"""
-Apex Executive AI Enterprise Backend
-FastAPI server connecting the mobile cockpit to CrewAI multi-agent crews,
-the AI Application Firewall, and the Enterprise Brain database.
-"""
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-import asyncio
+:root {
+  --bg: #07111d;
+  --panel: #111c2b;
+  --panel-alt: #0d1724;
+  --border: rgba(148, 163, 184, 0.18);
+  --card: #0f172a;
+  --text: #e5eef9;
+  --muted: #93a4b8;
+  --accent: #fbbf24;
+  --accent-strong: #f59e0b;
+  --green: #34d399;
+  --blue: #60a5fa;
+  --red: #f87171;
+  --shadow: 0 18px 48px rgba(2, 6, 23, 0.42);
+}
 
-from config import settings
-from database.db import brain_db
-from security.firewall import firewall
-from meta_dev.self_updater import meta_dev
-from crews.orchestrator import orchestrator
+* { box-sizing: border-box; }
 
-app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #040b14, #0b1320 25%, #0d1826 100%);
+  color: var(--text);
+}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+body {
+  min-height: 100vh;
+}
 
-class MandateRequest(BaseModel):
-    directive: str
-    target_division: Optional[str] = "all"
+button, textarea {
+  font: inherit;
+}
 
-class ApprovalRequest(BaseModel):
-    approval_id: str
-    approved: bool
-    feedback: Optional[str] = None
+button {
+  cursor: pointer;
+}
 
-class VentureCreateRequest(BaseModel):
-    sector: str
-    title: str
-    profit: float
+.app-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
 
-@app.get("/")
-def root():
-    return {
-        "status": "online",
-        "company": "Apex Global Holdings",
-        "ceo": "Founder",
-        "version": settings.VERSION,
-        "firewall": "Fortress Level 1 Active"
-    }
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: rgba(11, 17, 27, 0.9);
+  padding: 24px 20px;
+}
 
-@app.get("/api/dashboard/summary")
-async def get_dashboard_summary():
-    ventures = await brain_db.get_all_ventures()
-    approvals = await brain_db.get_pending_approvals()
-    telemetry = firewall.get_telemetry()
-    return {
-        "revenue_mtd": 214850.00,
-        "treasury": 1420000.00,
-        "active_agents": 64,
-        "pending_approvals_count": len(approvals),
-        "threats_blocked": telemetry["threats_blocked"],
-        "active_ventures": ventures,
-        "pending_approvals": approvals
-    }
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
 
-@app.post("/api/ceo/mandate")
-async def issue_ceo_mandate(req: MandateRequest):
-    # 1. Inspect prompt through AI Application Firewall
-    inspection = firewall.inspect_inbound_prompt(req.directive)
-    if not inspection["safe"]:
-        raise HTTPException(status_code=400, detail=inspection["reason"])
-    
-    # 2. Dispatch to Chief of Staff & Crew Orchestrator
-    result = await orchestrator.execute_ceo_directive(inspection["clean_text"], req.target_division)
-    return {"status": "dispatched", "execution": result}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #101827;
+  font-weight: 800;
+}
 
-@app.post("/api/ceo/approve")
-async def process_ceo_approval(req: ApprovalRequest):
-    result = await brain_db.resolve_approval(req.approval_id, req.approved, req.feedback)
-    return {"status": "resolved", "result": result}
+.brand-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
 
-@app.post("/api/ventures/create")
-async def create_venture(req: VentureCreateRequest):
-    new_v = {
-        "id": f"v_custom_{len(await brain_db.get_all_ventures()) + 1}",
-        "sector": req.sector,
-        "title": req.title,
-        "projected_profit": req.profit,
-        "status": "Crew Assembled",
-        "doc_ref": "trade_bol"
-    }
-    saved = await brain_db.add_venture(new_v)
-    return {"status": "created", "venture": saved}
+.brand-subtitle {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
 
-@app.post("/api/security/red-team")
-def trigger_red_team():
-    return firewall.simulate_red_team_probe(25)
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-@app.get("/api/meta-dev/check-upgrade")
-async def check_self_upgrade():
-    return await meta_dev.scan_and_stage_upgrade()
+.nav-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: 0.2s ease;
+}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+.nav-item:hover, .nav-item.active {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.main-content {
+  padding: 28px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 2vw, 2.5rem);
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #0b1220;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.primary-btn.full {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.metric-card, .panel {
+  background: rgba(17, 28, 43, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.metric-card {
+  padding: 18px 20px;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metric-value {
+  margin-top: 12px;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  font-weight: 800;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 22px;
+}
+
+.left-stack, .right-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.panel {
+  padding: 18px 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.table-list {
+  display: grid;
+  gap: 12px;
+}
+
+.list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.list-row:last-child {
+  border-bottom: none;
+}
+
+.row-title {
+  font-weight: 700;
+}
+
+.row-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-value {
+  font-weight: 700;
+  color: var(--green);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--green);
+  font-size: 0.72rem;
+}
+
+.tiny-btn {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.32);
+  color: var(--blue);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.risk-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(14, 22, 32, 0.9);
+}
+
+.risk-title {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.risk-value {
+  margin-top: 12px;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.risk-detail {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 0.72rem;
+}
+
+.chat-box textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  background: rgba(8, 13, 22, 0.8);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.assistant-reply {
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(16, 32, 40, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: #dfeafc;
+  line-height: 1.5;
+}
+
+.bottom-row {
+  margin-top: 22px;
+}
+
+.document-panel {
+  min-height: 260px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar button {
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+
+.rich-editor {
+  min-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(6, 13, 22, 0.7);
+  padding: 14px;
+  line-height: 1.6;
+}
+
+.rich-editor h1, .rich-editor h2, .rich-editor h3, .rich-editor p, .rich-editor ul {
+  margin-top: 0;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid, .content-grid, .risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .main-content {
+    padding: 18px;
+  }
+}
