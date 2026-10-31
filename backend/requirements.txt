@@ -1,35 +1,8 @@
-company:
-  name: Apex Executive OS
-  mission: Operate an executive command center for strategy, risk, venture tracking, and approvals.
-  principles:
-    - Human approval is required before real business actions.
-    - AI is advisory and explanatory.
-    - All activities must leave an audit trail.
-    - Security and privacy are the default.
-
-departments:
-  - Finance
-  - Operations
-  - Sales
-  - Legal
-  - Security
-  - Engineering
-  - People
-
-risks:
-  - Free-tier LLM availability varies by provider and quota.
-  - High-value actions require human review.
-  - Data access must be scoped to the current user's role.
-
-products:
-  - Board intelligence dashboard
-  - Venture and deal pipeline
-  - Approval queue
-  - Strategic memo generation
-  - Risk and compliance review
-
-process:
-  - AI summarizes signals
-  - Leadership reviews recommendations
-  - Approved actions are logged and executed
-  - Every decision remains traceable
+fastapi==0.115.2
+uvicorn[standard]==0.30.3
+pydantic==2.9.2
+python-dotenv==1.0.1
+openai==1.54.0
+langchain-core==0.3.17
+langchain-community==0.3.17
+langgraph==0.2.53

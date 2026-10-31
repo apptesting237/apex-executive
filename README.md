@@ -36,21 +36,23 @@ Apex Executive is a company dashboard and AI advisory workspace. It is designed 
 
 ## Run locally
 ### Frontend
-```
+```bash
 cd web
 npm install
 npm run dev
 ```
+
 ### Backend
-```
+```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
 ### Docker Desktop
-```
+```bash
 docker compose up --build
 ```
 

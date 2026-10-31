@@ -1,95 +1,123 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+try:
+    from langchain_core.documents import Document
+    from langchain_community.vectorstores import FAISS
+    from langchain_community.embeddings import FakeEmbeddings
+    LANGCHAIN_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    Document = None
+    FAISS = None
+    FakeEmbeddings = None
+    LANGCHAIN_AVAILABLE = False
 
-from ai.models import AIChatRequest, ApprovalRequest, DocumentDraftRequest, VentureCreateRequest
-from ai.service import ai_service
+try:
+    from langgraph.graph import END, StateGraph
+    LANGGRAPH_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    StateGraph = None
+    END = "__end__"
+    LANGGRAPH_AVAILABLE = False
 
-app = FastAPI(title="Apex Executive OS", version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-class HealthResponse(BaseModel):
-    status: str
-    service: str
-    version: str
-
-
-@app.get("/health", response_model=HealthResponse)
-async def health() -> Dict[str, str]:
-    return {"status": "ok", "service": "apex-executive", "version": "0.1.0"}
-
-
-@app.get("/api/overview")
-async def overview() -> Dict[str, Any]:
-    return {
-        "company": "Apex Executive OS",
-        "status": "ready",
-        "revenue_mtd": 214850,
-        "approvals_pending": 3,
-        "threats_blocked": 1842,
-        "active_ventures": [
-            {"id": "V-101", "sector": "Trade", "title": "Titanium Arbitrage", "projected_profit": 54200, "status": "Pipeline"},
-            {"id": "V-102", "sector": "Biotech", "title": "Oncology Program", "projected_profit": 120000, "status": "In review"},
-            {"id": "V-103", "sector": "Real Estate", "title": "Austin Logistics Park", "projected_profit": 84000, "status": "Approved"},
-        ],
-        "pending_approvals": [
-            {"id": "APR-104", "title": "Release Letter of Credit", "division": "Trade", "amount": 126000, "status": "Pending"},
-            {"id": "APR-221", "title": "Board Memo Draft Approval", "division": "Legal", "amount": 0, "status": "Pending"},
-            {"id": "APR-309", "title": "Austin Closing SOW", "division": "Real Estate", "amount": 84000, "status": "Pending"},
-        ],
-    }
+COMPANY_KNOWLEDGE = [
+    {
+        "title": "Apex Executive Mission",
+        "content": "Apex Executive OS helps leaders track revenue, risks, approvals, ventures, and strategic priorities. AI is advisory and every material action requires human approval.",
+    },
+    {
+        "title": "Security policy",
+        "content": "All AI access is role-scoped. Sensitive actions such as treasury, legal, or security execution require explicit human approval and audit logging.",
+    },
+    {
+        "title": "Operating model",
+        "content": "The company uses an approval queue, document drafting workflow, and executive briefing flow. AI summarizes and recommends while leadership approves actions.",
+    },
+    {
+        "title": "Risk posture",
+        "content": "Free-tier LLMs are useful for experimentation but vary in reliability and quota. The app must track confidence, fallback providers, and human review requirements.",
+    },
+]
 
 
-@app.post("/api/ai/briefing")
-async def briefing(req: AIChatRequest) -> Dict[str, Any]:
-    return await ai_service.briefing(req.message, req.context or "")
+class RAGService:
+    def __init__(self, knowledge: List[Dict[str, str]] | None = None) -> None:
+        self.documents = knowledge or COMPANY_KNOWLEDGE
+        self.vector_store = None
+
+        if LANGCHAIN_AVAILABLE and Document is not None and FAISS is not None and FakeEmbeddings is not None:
+            docs = [
+                Document(page_content=item["content"], metadata={"title": item["title"]})
+                for item in self.documents
+            ]
+            self.vector_store = FAISS.from_documents(docs, FakeEmbeddings(size=256))
+
+    def retrieve(self, query: str, limit: int = 3) -> List[Dict[str, str]]:
+        if self.vector_store is not None:
+            matches = self.vector_store.similarity_search(query, k=limit)
+            return [
+                {"title": item.metadata.get("title", "Knowledge"), "content": item.page_content}
+                for item in matches
+            ]
+
+        lowered_query = query.lower()
+        matches: List[tuple[int, Dict[str, str]]] = []
+        for item in self.documents:
+            text = f"{item['title']} {item['content']}".lower()
+            score = 0
+            for token in lowered_query.split():
+                if token in text:
+                    score += 2
+            if score > 0:
+                matches.append((score, item))
+
+        matches.sort(key=lambda pair: pair[0], reverse=True)
+        ranked = [item for _, item in matches[:limit]]
+        if not ranked:
+            ranked = [self.documents[0]]
+        return [{"title": item["title"], "content": item["content"]} for item in ranked]
+
+    def build_answer(self, question: str, context: str = "") -> Dict[str, Any]:
+        results = self.retrieve(question)
+        evidence = "\n\n".join(f"- {item['title']}: {item['content']}" for item in results)
+        answer = (
+            f"Based on the company knowledge base, here is a safe response to: '{question}'\n\n"
+            f"{evidence}\n\n"
+            "Recommended action: keep this as an advisory recommendation and require explicit human approval before any material action."
+        )
+        if context.strip():
+            answer += f"\n\nAdditional context: {context.strip()}"
+        return {"answer": answer, "sources": results, "model": "rag-safe-briefing"}
 
 
-@app.post("/api/ai/draft")
-async def draft_document(req: DocumentDraftRequest) -> Dict[str, Any]:
-    return await ai_service.draft_document(req.title, req.body)
+class LangGraphAdvisor:
+    def __init__(self) -> None:
+        self.rag = RAGService()
+
+    def build_graph(self):
+        if not LANGGRAPH_AVAILABLE or StateGraph is None:
+            return None
+
+        workflow = StateGraph(dict)
+        workflow.add_node("retrieve", lambda state: {**state, "retrieved": self.rag.retrieve(state["question"])})
+        workflow.add_node("draft", lambda state: {**state, "answer": self.rag.build_answer(state["question"], state.get("context", ""))["answer"]})
+        workflow.add_edge("retrieve", "draft")
+        workflow.set_entry_point("retrieve")
+        workflow.add_edge("draft", END)
+        return workflow.compile()
+
+    async def answer(self, question: str, context: str = "") -> Dict[str, Any]:
+        graph = self.build_graph()
+        if graph is not None:
+            result = graph.invoke({"question": question, "context": context})
+            return {
+                "answer": result.get("answer", ""),
+                "sources": result.get("retrieved", self.rag.retrieve(question)),
+                "model": "langgraph-advisor",
+            }
+        return self.rag.build_answer(question, context)
 
 
-@app.post("/api/approvals")
-async def create_approval(req: ApprovalRequest) -> Dict[str, Any]:
-    if not req.action or not req.reason:
-        raise HTTPException(status_code=400, detail="Action and reason are required.")
-    return {
-        "status": "pending",
-        "approval_id": f"apr_{req.entity_id or 'new'}",
-        "action": req.action,
-        "requested_by": req.requested_by,
-        "requires_human_approval": True,
-    }
-
-
-@app.post("/api/ventures")
-async def create_venture(req: VentureCreateRequest) -> Dict[str, Any]:
-    return {
-        "status": "created",
-        "venture": {
-            "id": f"V-{len(req.title) % 1000:03d}",
-            "sector": req.sector,
-            "title": req.title,
-            "projected_profit": req.projected_profit,
-            "status": req.status,
-        },
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+rag_service = RAGService()
+langgraph_advisor = LangGraphAdvisor()

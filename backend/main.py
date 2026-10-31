@@ -1,354 +1,96 @@
-:root {
-  --bg: #07111d;
-  --panel: #111c2b;
-  --panel-alt: #0d1724;
-  --border: rgba(148, 163, 184, 0.18);
-  --card: #0f172a;
-  --text: #e5eef9;
-  --muted: #93a4b8;
-  --accent: #fbbf24;
-  --accent-strong: #f59e0b;
-  --green: #34d399;
-  --blue: #60a5fa;
-  --red: #f87171;
-  --shadow: 0 18px 48px rgba(2, 6, 23, 0.42);
-}
+from __future__ import annotations
 
-* { box-sizing: border-box; }
+from typing import Any, Dict, Optional
 
-html, body, #root {
-  margin: 0;
-  min-height: 100%;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: linear-gradient(180deg, #040b14, #0b1320 25%, #0d1826 100%);
-  color: var(--text);
-}
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-body {
-  min-height: 100vh;
-}
+from ai.models import AIChatRequest, ApprovalRequest, DocumentDraftRequest, VentureCreateRequest
+from ai.service import ai_service
 
-button, textarea {
-  font: inherit;
-}
+app = FastAPI(title="Apex Executive OS", version="0.1.0")
 
-button {
-  cursor: pointer;
-}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-.app-shell {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  min-height: 100vh;
-}
 
-.sidebar {
-  border-right: 1px solid var(--border);
-  background: rgba(11, 17, 27, 0.9);
-  padding: 24px 20px;
-}
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+    version: str
 
-.brand-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
-}
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #101827;
-  font-weight: 800;
-}
+@app.get("/health", response_model=HealthResponse)
+async def health() -> Dict[str, str]:
+    return {"status": "ok", "service": "apex-executive", "version": "0.1.0"}
 
-.brand-title {
-  font-size: 1.3rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
 
-.brand-subtitle {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
+@app.get("/api/overview")
+async def overview() -> Dict[str, Any]:
+    return {
+        "company": "Apex Executive OS",
+        "status": "ready",
+        "revenue_mtd": 214850,
+        "approvals_pending": 3,
+        "threats_blocked": 1842,
+        "active_ventures": [
+            {"id": "V-101", "sector": "Trade", "title": "Titanium Arbitrage", "projected_profit": 54200, "status": "Pipeline"},
+            {"id": "V-102", "sector": "Biotech", "title": "Oncology Program", "projected_profit": 120000, "status": "In review"},
+            {"id": "V-103", "sector": "Real Estate", "title": "Austin Logistics Park", "projected_profit": 84000, "status": "Approved"},
+        ],
+        "pending_approvals": [
+            {"id": "APR-104", "title": "Release Letter of Credit", "division": "Trade", "amount": 126000, "status": "Pending"},
+            {"id": "APR-221", "title": "Board Memo Draft Approval", "division": "Legal", "amount": 0, "status": "Pending"},
+            {"id": "APR-309", "title": "Austin Closing SOW", "division": "Real Estate", "amount": 84000, "status": "Pending"},
+        ],
+    }
 
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
-.nav-item {
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text);
-  border-radius: 10px;
-  padding: 10px 12px;
-  transition: 0.2s ease;
-}
+@app.post("/api/ai/briefing")
+async def briefing(req: AIChatRequest) -> Dict[str, Any]:
+    return await ai_service.briefing(req.message, req.context or "")
 
-.nav-item:hover, .nav-item.active {
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.32);
-}
 
-.main-content {
-  padding: 28px;
-}
+@app.post("/api/ai/draft")
+async def draft_document(req: DocumentDraftRequest) -> Dict[str, Any]:
+    return await ai_service.draft_document(req.title, req.body)
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
 
-.eyebrow {
-  color: var(--accent);
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  margin-bottom: 6px;
-}
+@app.post("/api/approvals")
+async def create_approval(req: ApprovalRequest) -> Dict[str, Any]:
+    if not req.action or not req.reason:
+        raise HTTPException(status_code=400, detail="Action and reason are required.")
 
-h1 {
-  margin: 0;
-  font-size: clamp(2rem, 2vw, 2.5rem);
-}
+    return {
+        "status": "pending",
+        "approval_id": f"apr_{req.entity_id or 'new'}",
+        "action": req.action,
+        "requested_by": req.requested_by,
+        "requires_human_approval": True,
+    }
 
-.primary-btn {
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #0b1220;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 700;
-}
 
-.primary-btn.full {
-  width: 100%;
-  margin-top: 10px;
-}
+@app.post("/api/ventures")
+async def create_venture(req: VentureCreateRequest) -> Dict[str, Any]:
+    return {
+        "status": "created",
+        "venture": {
+            "id": f"V-{len(req.title) % 1000:03d}",
+            "sector": req.sector,
+            "title": req.title,
+            "projected_profit": req.projected_profit,
+            "status": req.status,
+        },
+    }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 22px;
-}
 
-.metric-card, .panel {
-  background: rgba(17, 28, 43, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-}
+if __name__ == "__main__":
+    import uvicorn
 
-.metric-card {
-  padding: 18px 20px;
-}
-
-.metric-label {
-  color: var(--muted);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.metric-value {
-  margin-top: 12px;
-  font-size: clamp(1.4rem, 2vw, 2rem);
-  font-weight: 800;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 0.9fr;
-  gap: 22px;
-}
-
-.left-stack, .right-stack {
-  display: grid;
-  gap: 22px;
-}
-
-.panel {
-  padding: 18px 20px;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.table-list {
-  display: grid;
-  gap: 12px;
-}
-
-.list-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.list-row:last-child {
-  border-bottom: none;
-}
-
-.row-title {
-  font-weight: 700;
-}
-
-.row-meta {
-  color: var(--muted);
-  font-size: 0.78rem;
-  margin-top: 4px;
-}
-
-.row-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.row-value {
-  font-weight: 700;
-  color: var(--green);
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 8px;
-  border-radius: 999px;
-  background: rgba(52, 211, 153, 0.12);
-  color: var(--green);
-  font-size: 0.72rem;
-}
-
-.tiny-btn {
-  background: rgba(96, 165, 250, 0.12);
-  border: 1px solid rgba(96, 165, 250, 0.32);
-  color: var(--blue);
-  border-radius: 8px;
-  padding: 6px 8px;
-}
-
-.risk-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.risk-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  background: rgba(14, 22, 32, 0.9);
-}
-
-.risk-title {
-  color: var(--muted);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.risk-value {
-  margin-top: 12px;
-  font-size: 1.4rem;
-  font-weight: 800;
-}
-
-.risk-detail {
-  color: var(--muted);
-  margin-top: 8px;
-  font-size: 0.72rem;
-}
-
-.chat-box textarea {
-  width: 100%;
-  resize: vertical;
-  border: 1px solid var(--border);
-  background: rgba(8, 13, 22, 0.8);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.assistant-reply {
-  margin-top: 14px;
-  padding: 12px;
-  background: rgba(16, 32, 40, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: #dfeafc;
-  line-height: 1.5;
-}
-
-.bottom-row {
-  margin-top: 22px;
-}
-
-.document-panel {
-  min-height: 260px;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar button {
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 5px 8px;
-}
-
-.rich-editor {
-  min-height: 180px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(6, 13, 22, 0.7);
-  padding: 14px;
-  line-height: 1.6;
-}
-
-.rich-editor h1, .rich-editor h2, .rich-editor h3, .rich-editor p, .rich-editor ul {
-  margin-top: 0;
-}
-
-@media (max-width: 980px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-grid, .content-grid, .risk-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .main-content {
-    padding: 18px;
-  }
-}
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

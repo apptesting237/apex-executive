@@ -1,234 +1,365 @@
-import { useMemo, useState } from 'react';
-
-const overview = {
-  revenue: 214850,
-  approvals: 3,
-  threats: 1842,
-  activeVentures: 12,
-};
-
-const ventureData = [
-  { id: 'V-101', sector: 'Trade', title: 'Titanium Arbitrage', value: '$54,200', status: 'Pipeline' },
-  { id: 'V-102', sector: 'Biotech', title: 'Oncology Protocol', value: '$120,000', status: 'In review' },
-  { id: 'V-103', sector: 'Real Estate', title: 'Austin Logistics Park', value: '$84,000', status: 'Approved' },
-];
-
-const approvals = [
-  { id: 'APR-104', title: 'Release Letter of Credit', amount: '$126,000', owner: 'Trade Desk' },
-  { id: 'APR-221', title: 'Board Memo Draft Approval', amount: '$0', owner: 'Legal' },
-  { id: 'APR-309', title: 'Austin Closing SOW', amount: '$84,000', owner: 'Real Estate' },
-];
-
-const riskCards = [
-  { title: 'Compliance', value: 'Low', detail: 'Policy checks clear' },
-  { title: 'Threat Defense', value: '1842', detail: 'Blocked injections' },
-  { title: 'AI Safety', value: 'Human review', detail: 'Required for actions' },
-];
-
-const initialDocument = `
-<h1>Board Summary</h1>
-<p><strong>Executive summary:</strong> Revenue remains disciplined and pipeline quality is improving across the trading, biotech, and real-estate portfolio.</p>
-<ul>
-  <li>Maintain strategic patience before large capital deployments.</li>
-  <li>Continue safe AI-assisted briefings with human approval.</li>
-  <li>Prioritize compliance and leadership review over speed.</li>
-</ul>
-`;
-
-function RichTextEditor({ initialHtml }) {
-  const [html, setHtml] = useState(initialHtml);
-
-  const applyFormat = (format) => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      setHtml((current) => current + `<${format}>New content</${format}>`);
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
-
-    if (!selectedText) {
-      const element = document.createElement(format === 'b' ? 'b' : format === 'i' ? 'i' : 'mark');
-      element.textContent = format === 'b' ? 'bold text' : format === 'i' ? 'italic text' : 'highlight';
-      range.insertNode(element);
-      setHtml(document.getElementById('editor').innerHTML);
-      return;
-    }
-
-    const wrapper = document.createElement(format === 'b' ? 'b' : format === 'i' ? 'i' : 'mark');
-    wrapper.textContent = selectedText;
-    range.deleteContents();
-    range.insertNode(wrapper);
-    setHtml(document.getElementById('editor').innerHTML);
-  };
-
-  return (
-    <div className="panel document-panel">
-      <div className="panel-header">
-        <h3>Board Notes</h3>
-        <div className="toolbar">
-          <button type="button" onClick={() => applyFormat('b')}>Bold</button>
-          <button type="button" onClick={() => applyFormat('i')}>Italic</button>
-          <button type="button" onClick={() => applyFormat('mark')}>Highlight</button>
-        </div>
-      </div>
-      <div
-        id="editor"
-        className="rich-editor"
-        dangerouslySetInnerHTML={{ __html: html }}
-        contentEditable
-        onInput={(event) => setHtml(event.currentTarget.innerHTML)}
-      />
-    </div>
-  );
+:root {
+  --bg: #07111d;
+  --panel: #111c2b;
+  --panel-alt: #0d1724;
+  --border: rgba(148, 163, 184, 0.18);
+  --card: #0f172a;
+  --text: #e5eef9;
+  --muted: #93a4b8;
+  --accent: #fbbf24;
+  --accent-strong: #f59e0b;
+  --green: #34d399;
+  --blue: #60a5fa;
+  --red: #f87171;
+  --shadow: 0 18px 48px rgba(2, 6, 23, 0.42);
 }
 
-function App() {
-  const summary = useMemo(
-    () => [
-      { label: 'MTD Revenue', value: `$${overview.revenue.toLocaleString()}` },
-      { label: 'Approvals', value: overview.approvals },
-      { label: 'Threats Blocked', value: overview.threats.toLocaleString() },
-      { label: 'Active Ventures', value: overview.activeVentures },
-    ],
-    []
-  );
-
-  const [chatInput, setChatInput] = useState('Summarize the safest next move for the executive team.');
-  const [assistantReply, setAssistantReply] = useState(
-    'The company should maintain a cautious capital deployment plan, prioritize the approved pipeline, and keep all material actions under human review.'
-  );
-
-  const handleAsk = () => {
-    setAssistantReply(
-      'Recommended action: maintain a measured operating rhythm, keep the approval queue visible to leadership, and proceed only with verified opportunities. AI is advisory; execution remains human-approved.'
-    );
-  };
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-wrap">
-          <div className="brand-mark">A</div>
-          <div>
-            <div className="brand-title">APEX</div>
-            <div className="brand-subtitle">Executive OS</div>
-          </div>
-        </div>
-
-        <nav className="nav">
-          <button type="button" className="nav-item active">Overview</button>
-          <button type="button" className="nav-item">Ventures</button>
-          <button type="button" className="nav-item">Approvals</button>
-          <button type="button" className="nav-item">Documents</button>
-          <button type="button" className="nav-item">Risk</button>
-          <button type="button" className="nav-item">AI</button>
-        </nav>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div>
-            <div className="eyebrow">CEO cockpit</div>
-            <h1>Executive command center</h1>
-          </div>
-          <button type="button" className="primary-btn">Approve queue</button>
-        </header>
-
-        <section className="summary-grid">
-          {summary.map((item) => (
-            <div key={item.label} className="metric-card">
-              <div className="metric-label">{item.label}</div>
-              <div className="metric-value">{item.value}</div>
-            </div>
-          ))}
-        </section>
-
-        <section className="content-grid">
-          <div className="left-stack">
-            <div className="panel">
-              <div className="panel-header">
-                <h3>Active ventures</h3>
-              </div>
-              <div className="table-list">
-                {ventureData.map((item) => (
-                  <div className="list-row" key={item.id}>
-                    <div>
-                      <div className="row-title">{item.title}</div>
-                      <div className="row-meta">{item.sector} • {item.id}</div>
-                    </div>
-                    <div className="row-right">
-                      <div className="row-value">{item.value}</div>
-                      <span className="pill">{item.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="panel">
-              <div className="panel-header">
-                <h3>Approvals</h3>
-              </div>
-              <div className="table-list">
-                {approvals.map((item) => (
-                  <div className="list-row" key={item.id}>
-                    <div>
-                      <div className="row-title">{item.title}</div>
-                      <div className="row-meta">{item.owner}</div>
-                    </div>
-                    <div className="row-right">
-                      <div className="row-value">{item.amount}</div>
-                      <button type="button" className="tiny-btn">Review</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="right-stack">
-            <div className="panel">
-              <div className="panel-header">
-                <h3>Risk & compliance</h3>
-              </div>
-              <div className="risk-grid">
-                {riskCards.map((card) => (
-                  <div className="risk-card" key={card.title}>
-                    <div className="risk-title">{card.title}</div>
-                    <div className="risk-value">{card.value}</div>
-                    <div className="risk-detail">{card.detail}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="panel">
-              <div className="panel-header">
-                <h3>AI advisor</h3>
-              </div>
-              <div className="chat-box">
-                <textarea
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  rows={3}
-                />
-                <button type="button" className="primary-btn full" onClick={handleAsk}>Ask advisor</button>
-                <div className="assistant-reply">
-                  {assistantReply}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="bottom-row">
-          <RichTextEditor initialHtml={initialDocument} />
-        </section>
-      </main>
-    </div>
-  );
+* {
+  box-sizing: border-box;
 }
 
-export default App;
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #040b14, #0b1320 25%, #0d1826 100%);
+  color: var(--text);
+}
+
+body {
+  min-height: 100vh;
+}
+
+button, textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: rgba(11, 17, 27, 0.9);
+  padding: 24px 20px;
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #101827;
+  font-weight: 800;
+}
+
+.brand-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.brand-subtitle {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: 0.2s ease;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.main-content {
+  padding: 28px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 2vw, 2.5rem);
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #0b1220;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.primary-btn.full {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.metric-card,
+.panel {
+  background: rgba(17, 28, 43, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.metric-card {
+  padding: 18px 20px;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metric-value {
+  margin-top: 12px;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  font-weight: 800;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 22px;
+}
+
+.left-stack,
+.right-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.panel {
+  padding: 18px 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.table-list {
+  display: grid;
+  gap: 12px;
+}
+
+.list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.list-row:last-child {
+  border-bottom: none;
+}
+
+.row-title {
+  font-weight: 700;
+}
+
+.row-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-value {
+  font-weight: 700;
+  color: var(--green);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--green);
+  font-size: 0.72rem;
+}
+
+.tiny-btn {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.32);
+  color: var(--blue);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.risk-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(14, 22, 32, 0.9);
+}
+
+.risk-title {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.risk-value {
+  margin-top: 12px;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.risk-detail {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 0.72rem;
+}
+
+.chat-box textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  background: rgba(8, 13, 22, 0.8);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.assistant-reply {
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(16, 32, 40, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: #dfeafc;
+  line-height: 1.5;
+}
+
+.bottom-row {
+  margin-top: 22px;
+}
+
+.document-panel {
+  min-height: 260px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar button {
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+
+.rich-editor {
+  min-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(6, 13, 22, 0.7);
+  padding: 14px;
+  line-height: 1.6;
+}
+
+.rich-editor h1,
+.rich-editor h2,
+.rich-editor h3,
+.rich-editor p,
+.rich-editor ul {
+  margin-top: 0;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid,
+  .content-grid,
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .main-content {
+    padding: 18px;
+  }
+}

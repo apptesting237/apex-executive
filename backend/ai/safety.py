@@ -2,31 +2,28 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from ai.rag_service import langgraph_advisor, rag_service
-from ai.safety import safe_action_router
 
-
-class ApexAIService:
-    def __init__(self):
-        self.rag = rag_service
-        self.workflow = langgraph_advisor
-
-    async def briefing(self, question: str, context: str = "") -> Dict[str, Any]:
-        action_check = safe_action_router.check("briefing")
-        if not action_check["allowed"]:
-            return {"answer": action_check["reason"], "sources": [], "model": "blocked"}
-        return await self.workflow.answer(question, context)
-
-    async def draft_document(self, title: str, body: str) -> Dict[str, Any]:
-        action_check = safe_action_router.check("draft_memo")
-        if not action_check["allowed"]:
-            return {"status": "blocked", "message": action_check["reason"]}
-        return {
-            "status": "draft_saved",
-            "title": title,
-            "snippet": body[:220],
-            "requires_human_approval": True,
+class SafeActionRouter:
+    def __init__(self) -> None:
+        self.allowed_actions = {
+            "briefing": "read_only",
+            "risk_summary": "read_only",
+            "draft_memo": "write_document",
+            "approve_action": "requires_human_approval",
+            "send_email": "requires_human_approval",
+            "execute_budget": "requires_human_approval",
         }
 
+    def check(self, action: str) -> Dict[str, Any]:
+        policy = self.allowed_actions.get(action, "blocked")
+        if policy == "blocked":
+            return {"allowed": False, "reason": "Action is not in the allowlist."}
+        if policy == "requires_human_approval":
+            return {
+                "allowed": False,
+                "reason": "This action requires explicit human approval before execution.",
+            }
+        return {"allowed": True, "policy": policy}
 
-ai_service = ApexAIService()
+
+safe_action_router = SafeActionRouter()
