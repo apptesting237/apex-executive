@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from ai.rag_service import langgraph_advisor, rag_service
+from ai.rag_service import rag_service, langgraph_advisor
 from ai.safety import safe_action_router
 
 

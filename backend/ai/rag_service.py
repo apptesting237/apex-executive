@@ -7,7 +7,7 @@ try:
     from langchain_community.vectorstores import FAISS
     from langchain_community.embeddings import FakeEmbeddings
     LANGCHAIN_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
+except Exception:
     Document = None
     FAISS = None
     FakeEmbeddings = None
@@ -16,7 +16,7 @@ except Exception:  # pragma: no cover - optional dependency
 try:
     from langgraph.graph import END, StateGraph
     LANGGRAPH_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
+except Exception:
     StateGraph = None
     END = "__end__"
     LANGGRAPH_AVAILABLE = False
