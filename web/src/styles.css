@@ -44,15 +44,18 @@ function RichTextEditor({ initialHtml }) {
       setHtml((current) => current + `<${format}>New content</${format}>`);
       return;
     }
+
     const range = selection.getRangeAt(0);
     const selectedText = range.toString();
+
     if (!selectedText) {
-      const text = ` ${format === 'b' ? 'bold text' : format === 'i' ? 'italic text' : 'highlight'}`;
-      const node = document.createElement(format === 'b' ? 'b' : format === 'i' ? 'i' : 'mark');
-      node.textContent = text.trim();
-      range.insertNode(node);
+      const element = document.createElement(format === 'b' ? 'b' : format === 'i' ? 'i' : 'mark');
+      element.textContent = format === 'b' ? 'bold text' : format === 'i' ? 'italic text' : 'highlight';
+      range.insertNode(element);
+      setHtml(document.getElementById('editor').innerHTML);
       return;
     }
+
     const wrapper = document.createElement(format === 'b' ? 'b' : format === 'i' ? 'i' : 'mark');
     wrapper.textContent = selectedText;
     range.deleteContents();
@@ -65,9 +68,9 @@ function RichTextEditor({ initialHtml }) {
       <div className="panel-header">
         <h3>Board Notes</h3>
         <div className="toolbar">
-          <button onClick={() => applyFormat('b')}>Bold</button>
-          <button onClick={() => applyFormat('i')}>Italic</button>
-          <button onClick={() => applyFormat('mark')}>Highlight</button>
+          <button type="button" onClick={() => applyFormat('b')}>Bold</button>
+          <button type="button" onClick={() => applyFormat('i')}>Italic</button>
+          <button type="button" onClick={() => applyFormat('mark')}>Highlight</button>
         </div>
       </div>
       <div
@@ -115,12 +118,12 @@ function App() {
         </div>
 
         <nav className="nav">
-          <button className="nav-item active">Overview</button>
-          <button className="nav-item">Ventures</button>
-          <button className="nav-item">Approvals</button>
-          <button className="nav-item">Documents</button>
-          <button className="nav-item">Risk</button>
-          <button className="nav-item">AI</button>
+          <button type="button" className="nav-item active">Overview</button>
+          <button type="button" className="nav-item">Ventures</button>
+          <button type="button" className="nav-item">Approvals</button>
+          <button type="button" className="nav-item">Documents</button>
+          <button type="button" className="nav-item">Risk</button>
+          <button type="button" className="nav-item">AI</button>
         </nav>
       </aside>
 
@@ -130,7 +133,7 @@ function App() {
             <div className="eyebrow">CEO cockpit</div>
             <h1>Executive command center</h1>
           </div>
-          <button className="primary-btn">Approve queue</button>
+          <button type="button" className="primary-btn">Approve queue</button>
         </header>
 
         <section className="summary-grid">
@@ -177,7 +180,7 @@ function App() {
                     </div>
                     <div className="row-right">
                       <div className="row-value">{item.amount}</div>
-                      <button className="tiny-btn">Review</button>
+                      <button type="button" className="tiny-btn">Review</button>
                     </div>
                   </div>
                 ))}
@@ -211,7 +214,7 @@ function App() {
                   onChange={(event) => setChatInput(event.target.value)}
                   rows={3}
                 />
-                <button className="primary-btn full" onClick={handleAsk}>Ask advisor</button>
+                <button type="button" className="primary-btn full" onClick={handleAsk}>Ask advisor</button>
                 <div className="assistant-reply">
                   {assistantReply}
                 </div>

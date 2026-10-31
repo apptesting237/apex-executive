@@ -1,37 +1,26 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel
+from typing import Any, Dict
 
 
-class CompanyBriefingRequest(BaseModel):
-    question: str
-    context: Optional[str] = None
-    target_role: Optional[str] = "executive"
+class SafeActionRouter:
+    def __init__(self):
+        self.allowed_actions = {
+            "briefing": "read_only",
+            "risk_summary": "read_only",
+            "draft_memo": "write_document",
+            "approve_action": "requires_human_approval",
+            "send_email": "requires_human_approval",
+            "execute_budget": "requires_human_approval",
+        }
+
+    def check(self, action: str) -> Dict[str, Any]:
+        policy = self.allowed_actions.get(action, "blocked")
+        if policy == "blocked":
+            return {"allowed": False, "reason": "Action is not in the allowlist."}
+        if policy == "requires_human_approval":
+            return {"allowed": False, "reason": "This action requires explicit human approval before execution."}
+        return {"allowed": True, "policy": policy}
 
 
-class ApprovalRequest(BaseModel):
-    action: str
-    reason: str
-    entity_id: Optional[str] = None
-    requested_by: Optional[str] = "ceo"
-
-
-class VentureCreateRequest(BaseModel):
-    sector: str
-    title: str
-    projected_profit: float
-    status: Optional[str] = "draft"
-
-
-class DocumentDraftRequest(BaseModel):
-    title: str
-    body: str
-    owner: Optional[str] = "ceo"
-
-
-class AIChatRequest(BaseModel):
-    message: str
-    role: Optional[str] = "executive"
-    context: Optional[str] = None
+safe_action_router = SafeActionRouter()
