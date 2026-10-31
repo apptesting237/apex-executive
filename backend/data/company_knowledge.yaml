@@ -1,0 +1,37 @@
+# This file is intentionally left as a small safe knowledge base for the MVP RAG layer.
+
+company:
+  name: Apex Executive OS
+  mission: Operate an executive command center for strategy, risk, venture tracking, and approvals.
+  principles:
+    - Human approval is required before real business actions.
+    - AI is advisory and explanatory.
+    - All activities must leave an audit trail.
+    - Security and privacy are the default.
+
+departments:
+  - Finance
+  - Operations
+  - Sales
+  - Legal
+  - Security
+  - Engineering
+  - People
+
+risks:
+  - Free-tier LLM availability varies by provider and quota.
+  - High-value actions require human review.
+  - Data access must be scoped to the current user's role.
+
+products:
+  - Board intelligence dashboard
+  - Venture and deal pipeline
+  - Approval queue
+  - Strategic memo generation
+  - Risk and compliance review
+
+process:
+  - AI summarizes signals
+  - Leadership reviews recommendations
+  - Approved actions are logged and executed
+  - Every decision remains traceable

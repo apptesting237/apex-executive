@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+
+class EnterpriseMemory:
+    def __init__(self):
+        self.ventures = [
+            {
+                "id": "v_trade_01",
+                "sector": "Trade",
+                "title": "Grade-5 Titanium Arbitrage",
+                "projected_profit": 54200.0,
+                "status": "Pipeline",
+            },
+            {
+                "id": "v_med_01",
+                "sector": "Biotech",
+                "title": "Oncology Biomarker Program",
+                "projected_profit": 120000.0,
+                "status": "In review",
+            },
+            {
+                "id": "v_real_01",
+                "sector": "Real Estate",
+                "title": "Austin Logistics Park",
+                "projected_profit": 84000.0,
+                "status": "Approved",
+            },
+        ]
+        self.approvals = [
+            {
+                "id": "apr_001",
+                "title": "Release Letter of Credit",
+                "division": "Trade",
+                "amount": 126000.0,
+                "status": "Pending",
+            },
+            {
+                "id": "apr_002",
+                "title": "Board memo approval",
+                "division": "Legal",
+                "amount": 0.0,
+                "status": "Pending",
+            },
+        ]
+        self.documents = [
+            {
+                "id": "doc_001",
+                "title": "Q4 Board Summary",
+                "body": "<p><strong>Board Summary</strong></p><p>Growth remains healthy and pipeline quality is improving. The executive team should maintain a cautious approach to capital deployment.</p>",
+                "owner": "ceo",
+            }
+        ]
+
+    def overview(self) -> Dict[str, Any]:
+        return {
+            "company": "Apex Executive OS",
+            "status": "operational",
+            "revenue_mtd": 214850,
+            "approvals_pending": len(self.approvals),
+            "threats_blocked": 1842,
+            "active_ventures": self.ventures,
+            "pending_approvals": self.approvals,
+            "documents": self.documents,
+        }
+
+    def add_venture(self, venture: Dict[str, Any]) -> Dict[str, Any]:
+        self.ventures.insert(0, venture)
+        return venture
+
+    def add_document(self, document: Dict[str, Any]) -> Dict[str, Any]:
+        self.documents.insert(0, document)
+        return document
+
+
+enterprise_memory = EnterpriseMemory()
