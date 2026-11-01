@@ -1,310 +1,358 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  SafeAreaView,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  TextInput,
-  Modal,
-  Alert
-} from 'react-native';
-
-const BACKEND_URL = 'http://localhost:8000'; // Or your Railway / Render URL
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('cockpit');
-  const [revenue, setRevenue] = useState(214850);
-  const [approvalsCount, setApprovalsCount] = useState(3);
-  const [threats, setThreats] = useState(1842);
-  const [intercomVisible, setIntercomVisible] = useState(false);
-  const [mandateText, setMandateText] = useState('');
-  const [chatLog, setChatLog] = useState([
-    {
-      sender: 'Dr. Evelyn Vance (Chief of Staff)',
-      msg: 'Welcome to your CEO Cockpit. All 12 divisions are operating autonomously. How may I direct your crews today?'
-    }
-  ]);
-
-  const sendMandate = async (customText?: string) => {
-    const textToSend = customText || mandateText;
-    if (!textToSend.trim()) return;
-
-    setChatLog((prev) => [...prev, { sender: 'You (CEO)', msg: textToSend }]);
-    setMandateText('');
-    setIntercomVisible(false);
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/ceo/mandate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directive: textToSend })
-      });
-      const data = await res.json();
-      setChatLog((prev) => [
-        ...prev,
-        {
-          sender: 'Dr. Evelyn Vance (Chief of Staff)',
-          msg: `Action dispatched to ${data.execution.division}. ${data.execution.action} Projected ROI: ${data.execution.profit_projected}`
-        }
-      ]);
-    } catch (e) {
-      // Local demo fallback if backend is offline
-      setChatLog((prev) => [
-        ...prev,
-        {
-          sender: 'Dr. Evelyn Vance (Chief of Staff)',
-          msg: `Mandate acknowledged. Decomposing across relevant specialized crews. Check approval desk for draft.`
-        }
-      ]);
-    }
-  };
-
-  const approveDeal = (amount: number, title: string) => {
-    setRevenue((prev) => prev + amount);
-    setApprovalsCount((prev) => Math.max(0, prev - 1));
-    Alert.alert('Approved by CEO', `${title} executed! +$${amount.toLocaleString()} booked to company treasury.`);
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* CEO Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.brandTitle}>APEX EXECUTIVE</Text>
-          <Text style={styles.brandSub}>CEO Command OS • 12 Global Divisions</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => setIntercomVisible(true)}
-          style={styles.intercomButton}
-        >
-          <Text style={styles.intercomText}>🎙️ Chief of Staff</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Revenue & Defense Ticker */}
-      <View style={styles.ticker}>
-        <Text style={styles.tickerItem}>MTD: <Text style={styles.greenText}>${revenue.toLocaleString()}</Text></Text>
-        <Text style={styles.tickerItem}>Defended: <Text style={styles.cyanText}>{threats}</Text></Text>
-        <Text style={styles.tickerItem}>Approvals: <Text style={styles.goldText}>{approvalsCount}</Text></Text>
-      </View>
-
-      {/* Screen Views */}
-      <ScrollView style={styles.body}>
-        {activeTab === 'cockpit' && (
-          <View style={styles.section}>
-            {/* Chief of Staff Sit-Rep */}
-            <View style={styles.cardGold}>
-              <Text style={styles.cardGoldTitle}>Dr. Evelyn Vance (Chief of Staff)</Text>
-              <Text style={styles.cardGoldSub}>Harvard PhD • Full Enterprise Authority</Text>
-              <Text style={styles.cardGoldDesc}>
-                "12MT Grade-5 Titanium import spread ready (+$54.2k). Johns Hopkins oncology protocol finalized (+$120k). Austin Logistics Park syndicated at 21.4% IRR."
-              </Text>
-            </View>
-
-            {/* CEO Action Desk */}
-            <Text style={styles.heading}>CEO ACTION DESK ({approvalsCount} PENDING)</Text>
-
-            {approvalsCount > 0 && (
-              <View style={styles.actionCard}>
-                <Text style={styles.actionTitle}>🚢 Import/Export: Release $126k L/C for Titanium</Text>
-                <Text style={styles.actionDesc}>Pre-sold to German aerospace buyer. Net spread: +$54,200.</Text>
-                <TouchableOpacity
-                  onPress={() => approveDeal(54200, 'Titanium Import Arbitrage')}
-                  style={styles.btnApprove}
-                >
-                  <Text style={styles.btnText}>Authorize & Wire (Earn $54.2k)</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {approvalsCount > 1 && (
-              <View style={styles.actionCard}>
-                <Text style={styles.actionTitle}>🏢 Real Estate: Execute Austin Park Closing</Text>
-                <Text style={styles.actionDesc}>42k sq ft warehouse underwritten at 21.4% IRR. GP fee: +$84,000.</Text>
-                <TouchableOpacity
-                  onPress={() => approveDeal(84000, 'Austin Real Estate Syndication')}
-                  style={[styles.btnApprove, { backgroundColor: '#d97706' }]}
-                >
-                  <Text style={styles.btnText}>Sign & Collect $84k Fee</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
-        {activeTab === 'warroom' && (
-          <View style={styles.section}>
-            <Text style={styles.heading}>EXECUTIVE WAR ROOM</Text>
-            <View style={styles.chatBox}>
-              {chatLog.map((c, i) => (
-                <View key={i} style={styles.chatItem}>
-                  <Text style={c.sender.includes('CEO') ? styles.chatSenderCEO : styles.chatSenderAI}>{c.sender}:</Text>
-                  <Text style={styles.chatText}>{c.msg}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Command your company..."
-                placeholderTextColor="#64748b"
-                value={mandateText}
-                onChangeText={setMandateText}
-              />
-              <TouchableOpacity onPress={() => sendMandate()} style={styles.btnSend}>
-                <Text style={styles.btnText}>Send</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {activeTab === 'ventures' && (
-          <View style={styles.section}>
-            <Text style={styles.heading}>ACTIVE MONETIZATION ENGINES</Text>
-            <View style={styles.ventureCard}>
-              <Text style={styles.ventureTitle}>🚢 Global Trade: Titanium Arbitrage</Text>
-              <Text style={styles.ventureProfit}>+$54,200 Net Spread</Text>
-              <Text style={styles.ventureDesc}>Customs cleared under EVFTA 0% tariff. CIF Rotterdam delivery.</Text>
-            </View>
-            <View style={styles.ventureCard}>
-              <Text style={styles.ventureTitle}>🧬 Biotech: Oncology Biomarker Protocol</Text>
-              <Text style={styles.ventureProfit}>+$120,000 Milestone + 4% Royalty</Text>
-              <Text style={styles.ventureDesc}>Synthesized by MIT/Stanford fellows. Licensed to Meridian Therapeutics.</Text>
-            </View>
-            <View style={styles.ventureCard}>
-              <Text style={styles.ventureTitle}>🏢 Real Estate: Austin Logistics Park</Text>
-              <Text style={styles.ventureProfit}>+$84,000 Sponsor GP Fee</Text>
-              <Text style={styles.ventureDesc}>13.9% Cap Rate industrial acquisition. 14 LP investors syndicated.</Text>
-            </View>
-          </View>
-        )}
-
-        {activeTab === 'fortress' && (
-          <View style={styles.section}>
-            <Text style={styles.heading}>CISO AI FIREWALL & THREAT RADAR</Text>
-            <View style={styles.defenseCard}>
-              <Text style={styles.defenseTitle}>Zero-Trust Fortress Defense</Text>
-              <Text style={styles.defenseStat}>1,842 Attacks Neutralized</Text>
-              <Text style={styles.defenseDesc}>64 capability-scoped enclaves running with least-privilege tokens.</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => {
-                setThreats((p) => p + 25);
-                Alert.alert('Red-Team Audit', '25 adversarial injection vectors simulated and 100% deflected.');
-              }}
-              style={styles.btnAudit}
-            >
-              <Text style={styles.btnText}>Run Red-Team Attack Simulation</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Floating Bottom Nav */}
-      <View style={styles.tabBar}>
-        {['Cockpit', 'WarRoom', 'Ventures', 'Fortress'].map((t) => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setActiveTab(t.toLowerCase())}
-            style={styles.tabBtn}
-          >
-            <Text style={[styles.tabText, activeTab === t.toLowerCase() && styles.tabActive]}>{t}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Intercom Voice Modal */}
-      <Modal visible={intercomVisible} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Dr. Evelyn Vance — Executive Voice Intercom</Text>
-            <Text style={styles.modalSub}>Harvard PhD • Select a mandate or dictate to your Chief of Staff:</Text>
-            <TouchableOpacity
-              onPress={() => sendMandate('Source a high-margin Import/Export commodity arbitrage deal')}
-              style={styles.presetBtn}
-            >
-              <Text style={styles.presetText}>🚢 "Source high-margin Import/Export trade deal"</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => sendMandate('Have MIT and Mayo clinic draft a clinical trial protocol')}
-              style={styles.presetBtn}
-            >
-              <Text style={styles.presetText}>🧬 "Draft biotech clinical trial patent protocol"</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => sendMandate('Underwrite a commercial real estate logistics park')}
-              style={styles.presetBtn}
-            >
-              <Text style={styles.presetText}>🏢 "Model commercial real estate acquisition"</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setIntercomVisible(false)}
-              style={styles.closeBtn}
-            >
-              <Text style={styles.btnText}>Close Intercom</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
+* {
+  box-sizing: border-box;
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05070b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-  brandTitle: { fontSize: 16, fontWeight: 'bold', color: '#fbbf24', letterSpacing: 1 },
-  brandSub: { fontSize: 11, color: '#94a3b8' },
-  intercomButton: { backgroundColor: '#10b98120', borderWidth: 1, borderColor: '#10b981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  intercomText: { color: '#34d399', fontSize: 12, fontWeight: 'bold' },
-  ticker: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#0b0f17', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-  tickerItem: { fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' },
-  greenText: { color: '#34d399', fontWeight: 'bold' },
-  cyanText: { color: '#22d3ee', fontWeight: 'bold' },
-  goldText: { color: '#fbbf24', fontWeight: 'bold' },
-  body: { flex: 1, padding: 16 },
-  section: { marginBottom: 24 },
-  heading: { fontSize: 12, fontWeight: 'bold', color: '#94a3b8', letterSpacing: 1, marginBottom: 12 },
-  cardGold: { backgroundColor: '#111827', borderWidth: 1, borderColor: '#f59e0b50', borderRadius: 14, padding: 14, marginBottom: 16 },
-  cardGoldTitle: { fontSize: 14, fontWeight: 'bold', color: '#fff' },
-  cardGoldSub: { fontSize: 11, color: '#fbbf24', marginBottom: 6 },
-  cardGoldDesc: { fontSize: 12, color: '#cbd5e1', lineHeight: 18 },
-  actionCard: { backgroundColor: '#0b0f17', borderWidth: 1, borderColor: '#334155', borderRadius: 12, padding: 14, marginBottom: 12 },
-  actionTitle: { fontSize: 13, fontWeight: 'bold', color: '#fff' },
-  actionDesc: { fontSize: 11, color: '#94a3b8', marginTop: 4, marginBottom: 10 },
-  btnApprove: { backgroundColor: '#16a34a', paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  btnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  chatBox: { backgroundColor: '#0b0f17', borderWidth: 1, borderColor: '#334155', borderRadius: 12, padding: 12, minHeight: 220, marginBottom: 12 },
-  chatItem: { marginBottom: 10 },
-  chatSenderCEO: { fontSize: 11, fontWeight: 'bold', color: '#fbbf24' },
-  chatSenderAI: { fontSize: 11, fontWeight: 'bold', color: '#34d399' },
-  chatText: { fontSize: 12, color: '#e2e8f0', marginTop: 2 },
-  inputRow: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, backgroundColor: '#111827', borderWidth: 1, borderColor: '#334155', borderRadius: 10, paddingHorizontal: 12, color: '#fff', fontSize: 12 },
-  btnSend: { backgroundColor: '#d97706', paddingHorizontal: 16, justifyContent: 'center', borderRadius: 10 },
-  ventureCard: { backgroundColor: '#0b0f17', borderWidth: 1, borderColor: '#10b98150', borderRadius: 12, padding: 14, marginBottom: 12 },
-  ventureTitle: { fontSize: 13, fontWeight: 'bold', color: '#fff' },
-  ventureProfit: { fontSize: 12, fontWeight: 'bold', color: '#34d399', marginVertical: 3 },
-  ventureDesc: { fontSize: 11, color: '#94a3b8' },
-  defenseCard: { backgroundColor: '#0b0f17', borderWidth: 1, borderColor: '#3b82f650', borderRadius: 12, padding: 14, marginBottom: 12 },
-  defenseTitle: { fontSize: 13, fontWeight: 'bold', color: '#fff' },
-  defenseStat: { fontSize: 18, fontWeight: 'bold', color: '#38bdf8', marginVertical: 4 },
-  defenseDesc: { fontSize: 11, color: '#94a3b8' },
-  btnAudit: { backgroundColor: '#2563eb', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  tabBar: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#0b0f17', borderTopWidth: 1, borderTopColor: '#1e293b', paddingVertical: 12 },
-  tabBtn: { alignItems: 'center' },
-  tabText: { fontSize: 11, color: '#64748b' },
-  tabActive: { color: '#fbbf24', fontWeight: 'bold' },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: '#0b0f17', borderWidth: 1, borderColor: '#f59e0b', borderRadius: 16, padding: 20 },
-  modalTitle: { fontSize: 14, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  modalSub: { fontSize: 11, color: '#94a3b8', marginBottom: 14 },
-  presetBtn: { backgroundColor: '#111827', borderWidth: 1, borderColor: '#334155', padding: 12, borderRadius: 10, marginBottom: 8 },
-  presetText: { color: '#e2e8f0', fontSize: 12 },
-  closeBtn: { backgroundColor: '#334155', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 8 }
-});
+:root {
+  --bg: #06131f;
+  --bg-strong: #0a1d2d;
+  --panel: rgba(9, 18, 28, 0.82);
+  --panel-border: rgba(148, 163, 184, 0.18);
+  --text: #edf6ff;
+  --muted: #a8c3db;
+  --accent: #60a5fa;
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --blue: #60a5fa;
+  --red: #f87171;
+  --purple: #8b5cf6;
+}
+
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(96, 165, 250, 0.18), transparent 25%), var(--bg);
+  color: var(--text);
+  font-family: Inter, 'Segoe UI', sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.15em;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-pill,
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(74, 222, 128, 0.18);
+  color: #d9fbe7;
+  border: 1px solid rgba(74, 222, 128, 0.36);
+}
+
+.badge.warn {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fef3c7;
+  border-color: rgba(251, 191, 36, 0.28);
+}
+
+.badge.info,
+.badge.ghost {
+  background: rgba(96, 165, 250, 0.12);
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.28);
+}
+
+.refresh-btn,
+.tiny {
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  padding: 0.7rem 1rem;
+  color: white;
+  font-weight: 700;
+}
+
+.refresh-btn:hover,
+.tiny:hover {
+  transform: translateY(-1px);
+}
+
+.stats-grid,
+.hero-grid,
+.lower-grid {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.hero-grid {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.lower-grid {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
+.stat-card,
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  box-shadow: 0 18px 30px rgba(2, 6, 23, 0.28);
+}
+
+.stat-card {
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.stat-card strong {
+  font-size: clamp(1.3rem, 2vw, 2.1rem);
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.office-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.desk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.desk strong,
+.memory-item strong,
+.approval-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.desk small,
+.memory-meta,
+.approval-item small {
+  color: var(--muted);
+}
+
+.signal {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.04);
+}
+
+.signal-green { background: var(--green); }
+.signal-amber { background: var(--amber); }
+.signal-blue { background: var(--blue); }
+.signal-red { background: var(--red); }
+
+.brain-map {
+  position: relative;
+  height: 220px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle, rgba(96, 165, 250, 0.2), transparent 38%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(7, 16, 27, 0.9));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.brain-map::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08), rgba(139, 92, 246, 0.12));
+}
+
+.node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #def1ff;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.24), rgba(10, 20, 32, 0.9));
+  border: 1px solid rgba(96, 165, 250, 0.38);
+  box-shadow: 0 0 18px rgba(96, 165, 250, 0.18);
+  animation: pulse 2.6s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.node:nth-child(1) { left: 24%; top: 26%; }
+.node:nth-child(2) { left: 28%; top: 68%; }
+.node:nth-child(3) { left: 52%; top: 32%; }
+.node:nth-child(4) { left: 72%; top: 44%; }
+.node:nth-child(5) { left: 62%; top: 76%; }
+.node:nth-child(6) { left: 40%; top: 52%; }
+
+@keyframes pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.07); }
+}
+
+.stack-list,
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.approval-item,
+.memory-item {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.52);
+  padding: 12px 14px;
+}
+
+.approval-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tiny {
+  padding: 0.44rem 0.7rem;
+  color: white;
+  font-size: 0.72rem;
+}
+
+.tiny.success { background: rgba(34, 197, 94, 0.18); border: 1px solid rgba(34, 197, 94, 0.42); }
+.tiny.danger { background: rgba(239, 68, 68, 0.16); border: 1px solid rgba(239, 68, 68, 0.42); }
+.tiny.neutral { background: rgba(148, 163, 184, 0.14); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+.memory-item strong {
+  margin-bottom: 8px;
+}
+
+.memory-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.7rem;
+}
+
+.alert {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(127, 29, 29, 0.26);
+  color: #fecaca;
+}
+
+.loading-panel {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.empty-state {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .hero-grid,
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .approval-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

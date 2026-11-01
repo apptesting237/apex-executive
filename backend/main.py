@@ -1,4 +1,12 @@
-from .agents import ALL_DIVISION_AGENTS, DivisionAgent, get_all_agents
-from .orchestrator import EnterpriseCrewOrchestrator, orchestrator
-
-__all__ = ["DivisionAgent", "ALL_DIVISION_AGENTS", "get_all_agents", "EnterpriseCrewOrchestrator", "orchestrator"]
+{
+  "expo": {
+    "name": "Apex Executive",
+    "slug": "apex-executive",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}

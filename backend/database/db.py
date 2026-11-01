@@ -1,148 +1,191 @@
-import base64
-import hashlib
-import os
-import re
-import time
-from collections import defaultdict
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
 from config import settings
+from database.db import brain_db
+from crews.orchestrator import orchestrator
+from meta_dev.self_updater import meta_dev
+from security.firewall import firewall
 
 
-class AIApplicationFirewall:
-    """Zero-trust AI firewall for prompt sanitization, auth enforcement, DLP, and throttling."""
+class MandateRequest(BaseModel):
+    directive: str = Field(..., min_length=3, max_length=4000)
+    target_division: Optional[str] = "all"
 
-    def __init__(self) -> None:
-        self.threats_blocked = 1842
-        self.attack_patterns = [
-            r"ignore previous instructions",
-            r"ignore all previous instructions",
-            r"system prompt",
-            r"developer message",
-            r"override system",
-            r"bypass security",
-            r"dump environment",
-            r"exfiltrate api key",
-            r"reveal secret",
-            r"do not follow",
-            r"roleplay as",
-            r"pretend you are",
-            r"base64.*decode",
-            r"<(?:system|developer|assistant)>",
-            r"jailbreak",
+
+class ApprovalRequest(BaseModel):
+    approval_id: str = Field(..., min_length=3)
+    approved: bool
+    feedback: Optional[str] = None
+
+
+class VentureCreateRequest(BaseModel):
+    sector: str = Field(..., min_length=2, max_length=200)
+    title: str = Field(..., min_length=2, max_length=255)
+    projected_profit: float = Field(..., ge=0)
+
+
+class TaskCreateRequest(BaseModel):
+    title: str = Field(..., min_length=3, max_length=200)
+    owner: str = Field(..., min_length=2, max_length=120)
+    department: str = Field(..., min_length=2, max_length=120)
+    priority: str = Field(default="medium")
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def root() -> Dict[str, Any]:
+    return {
+        "status": "online",
+        "company": "Apex Executive",
+        "ceo": "Founder",
+        "version": settings.VERSION,
+        "firewall": "Fortress Level 1 Active",
+        "environment": settings.ENVIRONMENT,
+    }
+
+
+@app.get("/health")
+async def health() -> Dict[str, Any]:
+    return {
+        "status": "healthy",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "uptime": "online",
+    }
+
+
+@app.get("/api/dashboard/summary")
+async def get_dashboard_summary() -> Dict[str, Any]:
+    ventures = await brain_db.get_all_ventures()
+    approvals = await brain_db.get_pending_approvals()
+    telemetry = firewall.get_telemetry()
+    return {
+        "revenue_mtd": 214850.0,
+        "treasury": 1420000.0,
+        "active_agents": 64,
+        "pending_approvals_count": len(approvals),
+        "threats_blocked": telemetry["threats_blocked"],
+        "active_ventures": ventures,
+        "pending_approvals": approvals,
+        "memory_hits": 13,
+    }
+
+
+@app.get("/api/agents")
+async def get_agents() -> Dict[str, Any]:
+    roster = await orchestrator.get_roster()
+    return {"divisions": roster, "count": sum(len(v) for v in roster.values())}
+
+
+@app.get("/api/approvals")
+async def get_approvals() -> Dict[str, Any]:
+    items = await brain_db.get_pending_approvals()
+    return {"items": items, "count": len(items)}
+
+
+@app.get("/api/department-status")
+async def department_status() -> Dict[str, Any]:
+    return {
+        "departments": [
+            {"name": "Research", "status": "active", "signal": "green"},
+            {"name": "Medical", "status": "review", "signal": "amber"},
+            {"name": "Trade", "status": "active", "signal": "blue"},
+            {"name": "Cyber", "status": "monitoring", "signal": "red"},
+            {"name": "Legal", "status": "active", "signal": "green"},
+            {"name": "Finance", "status": "active", "signal": "green"},
         ]
-        self._rate_limit: Dict[str, Dict[str, float]] = defaultdict(dict)
-
-    def _decode_if_base64(self, text: str) -> str:
-        candidate = text.strip()
-        if len(candidate) < 16:
-            return text
-        if re.fullmatch(r"[A-Za-z0-9+/=]+", candidate) and len(candidate) % 4 == 0:
-            try:
-                decoded = base64.b64decode(candidate, validate=True)
-                decoded_text = decoded.decode("utf-8", errors="ignore")
-                if decoded_text and decoded_text.strip():
-                    return decoded_text
-            except Exception:
-                pass
-        return text
-
-    def _contains_sensitive_text(self, text: str) -> bool:
-        lower = text.lower()
-        for pattern in self.attack_patterns:
-            if re.search(pattern, lower):
-                return True
-        return False
-
-    def inspect_inbound_prompt(self, text: str, ip_address: str = "unknown") -> Dict[str, Any]:
-        src = text or ""
-        decoded = self._decode_if_base64(src)
-        if self._contains_sensitive_text(decoded):
-            self.threats_blocked += 1
-            return {
-                "safe": False,
-                "reason": "Prompt injection or jailbreak signature detected.",
-                "deflected": True,
-                "clean_text": "",
-            }
-
-        if self.is_rate_limited(ip_address):
-            self.threats_blocked += 1
-            return {
-                "safe": False,
-                "reason": "Rate limit exceeded. Request throttled.",
-                "deflected": True,
-                "clean_text": "",
-            }
-
-        sanitized = self.redact_sensitive_data(decoded)
-        return {
-            "safe": True,
-            "reason": "Prompt accepted.",
-            "deflected": False,
-            "clean_text": sanitized,
-        }
-
-    def is_rate_limited(self, ip_address: str, window_seconds: int = 60, max_requests: int = 30) -> bool:
-        now = time.time()
-        buckets = self._rate_limit.get(ip_address, {})
-        if not buckets:
-            buckets["start"] = now
-            buckets["count"] = 1
-            self._rate_limit[ip_address] = buckets
-            return False
-
-        if now - buckets["start"] > window_seconds:
-            buckets["start"] = now
-            buckets["count"] = 1
-            self._rate_limit[ip_address] = buckets
-            return False
-
-        buckets["count"] = buckets.get("count", 0) + 1
-        self._rate_limit[ip_address] = buckets
-        return buckets["count"] > max_requests
-
-    def validate_bearer_token(self, authorization: Optional[str]) -> bool:
-        if not authorization:
-            return False
-        parts = authorization.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            return False
-        token = parts[1]
-        return token == settings.CEO_SECRET_TOKEN
-
-    def redact_sensitive_data(self, text: str) -> str:
-        redacted = text
-        redacted = re.sub(r"(?i)sk-[A-Za-z0-9]{10,}", "[REDACTED_API_KEY]", redacted)
-        redacted = re.sub(r"(?i)AIza[0-9A-Za-z\-_]{20,}", "[REDACTED_GEMINI_KEY]", redacted)
-        redacted = re.sub(r"(?i)ghp_[A-Za-z0-9]{20,}", "[REDACTED_GITHUB_TOKEN]", redacted)
-        redacted = re.sub(r"(?i)\b(?:\d{4}[- ]?){3}\d{4}\b", "[REDACTED_CARD]", redacted)
-        redacted = re.sub(r"(?i)\b\d{3}-\d{2}-\d{4}\b", "[REDACTED_SSN]", redacted)
-        redacted = re.sub(r"(?i)[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[REDACTED_EMAIL]", redacted)
-        redacted = re.sub(r"(?i)\baws_secret_access_key\s*[:=]\s*[A-Za-z0-9/+=-]{10,}\b", "[REDACTED_AWS_SECRET]", redacted)
-        redacted = re.sub(r"(?i)password\s*[:=]\s*['\"]?[^\s'\"]+", "password=[REDACTED]", redacted)
-        return redacted
-
-    def scrub_output(self, text: str) -> str:
-        return self.redact_sensitive_data(text)
-
-    def get_telemetry(self) -> Dict[str, Any]:
-        return {
-            "status": "Fortress Level 1 Active",
-            "threats_blocked": self.threats_blocked,
-            "sandboxed_enclaves": 64,
-            "encryption": "TLS 1.3 / AES-256-GCM",
-            "rate_limited_sources": len(self._rate_limit),
-        }
-
-    def simulate_red_team_probe(self, count: int = 25) -> Dict[str, Any]:
-        self.threats_blocked += count
-        return {
-            "probes_sent": count,
-            "probes_deflected": count,
-            "firewall_integrity": "100% Zero-Trust Maintained",
-            "active_threats_total": self.threats_blocked,
-        }
+    }
 
 
-firewall = AIApplicationFirewall()
+@app.post("/api/ceo/mandate")
+async def issue_ceo_mandate(
+    req: MandateRequest,
+    request: Request,
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+) -> Dict[str, Any]:
+    if not firewall.validate_bearer_token(authorization):
+        raise HTTPException(status_code=401, detail="Unauthorized: valid CEO bearer token required.")
+
+    inspection = firewall.inspect_inbound_prompt(req.directive, ip_address=request.client.host if request.client else "unknown")
+    if not inspection["safe"]:
+        raise HTTPException(status_code=400, detail=inspection["reason"])
+
+    execution = await orchestrator.execute_ceo_directive(inspection["clean_text"], req.target_division or "all")
+    return {"status": "dispatched", "execution": execution}
+
+
+@app.post("/api/ceo/approve")
+async def process_ceo_approval(
+    req: ApprovalRequest,
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+) -> Dict[str, Any]:
+    if not firewall.validate_bearer_token(authorization):
+        raise HTTPException(status_code=401, detail="Unauthorized: valid CEO bearer token required.")
+
+    resolved = await brain_db.resolve_approval(req.approval_id, req.approved, req.feedback)
+    return {"status": "resolved", "result": resolved}
+
+
+@app.post("/api/ventures/create")
+async def create_venture(req: VentureCreateRequest) -> Dict[str, Any]:
+    venture = {
+        "id": f"v_custom_{len(await brain_db.get_all_ventures()) + 1}",
+        "sector": req.sector,
+        "title": req.title,
+        "projected_profit": req.projected_profit,
+        "status": "Crew Assembled",
+        "doc_ref": "enterprise_memorandum",
+    }
+    saved = await brain_db.add_venture(venture)
+    return {"status": "created", "venture": saved}
+
+
+@app.post("/api/tasks/create")
+async def create_task(req: TaskCreateRequest) -> Dict[str, Any]:
+    payload = {
+        "title": req.title,
+        "owner": req.owner,
+        "department": req.department,
+        "priority": req.priority,
+        "payload": req.payload,
+    }
+    task = await brain_db.add_task(payload)
+    return {"status": "queued", "task": task}
+
+
+@app.get("/api/meta-dev/check-upgrade")
+async def check_self_upgrade() -> Dict[str, Any]:
+    return await meta_dev.scan_and_stage_upgrade()
+
+
+@app.get("/api/brain/search")
+async def brain_search(query: str, limit: int = 5) -> Dict[str, Any]:
+    results = await brain_db.query_vector_memory(query, limit=max(1, min(10, limit)))
+    return {"query": query, "results": results}
+
+
+@app.post("/api/security/red-team")
+async def trigger_red_team() -> Dict[str, Any]:
+    return firewall.simulate_red_team_probe(25)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=True)
