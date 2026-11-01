@@ -1,216 +1,373 @@
-import os
-from typing import Any, Dict, List, Optional
+* {
+  box-sizing: border-box;
+}
 
-try:
-    from supabase import create_client, Client
-except Exception:  # pragma: no cover
-    Client = Any  # type: ignore
-    create_client = None
+:root {
+  --bg: #06131f;
+  --bg-strong: #0a1d2d;
+  --panel: rgba(9, 18, 28, 0.82);
+  --panel-border: rgba(148, 163, 184, 0.18);
+  --text: #edf6ff;
+  --muted: #a8c3db;
+  --accent: #60a5fa;
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --blue: #60a5fa;
+  --red: #f87171;
+  --purple: #8b5cf6;
+}
 
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(96, 165, 250, 0.18), transparent 25%), var(--bg);
+  color: var(--text);
+  font-family: Inter, 'Segoe UI', sans-serif;
+}
 
-class EnterpriseBrainDB:
-    """Supabase-backed enterprise memory with a local in-memory fallback."""
+button {
+  font: inherit;
+}
 
-    def __init__(self) -> None:
-        self.memory_store: List[Dict[str, Any]] = []
-        self.ventures_table: List[Dict[str, Any]] = [
-            {
-                "id": "v_trade_01",
-                "sector": "Global Import / Export",
-                "title": "Grade-5 Titanium Billet Cross-Border Arbitrage",
-                "projected_profit": 54200.0,
-                "status": "Customs Transit",
-                "doc_ref": "trade_bol",
-            },
-            {
-                "id": "v_med_01",
-                "sector": "Biotech & Medical Advisory",
-                "title": "Targeted Oncology Biomarker Synthesis",
-                "projected_profit": 120000.0,
-                "status": "Term Sheet Executed",
-                "doc_ref": "medical_protocol",
-            },
-            {
-                "id": "v_re_01",
-                "sector": "Commercial Real Estate",
-                "title": "Austin Industrial Logistics Park (42k sq ft)",
-                "projected_profit": 84000.0,
-                "status": "Closing Ready",
-                "doc_ref": "realestate_dcf",
-            },
-        ]
-        self.approvals_table: List[Dict[str, Any]] = [
-            {
-                "id": "appr_trade_01",
-                "title": "Release $126,000 Letter of Credit for Grade-5 Titanium",
-                "division": "Import & Export Trade Floor",
-                "amount": 54200.0,
-                "status": "Pending",
-                "details": "Contract pre-sold to German aerospace buyer. Net profit: +$54,200.",
-            },
-            {
-                "id": "appr_code_01",
-                "title": "Self-Evolution: Hot-Deploy Speculative Router v5.0.0",
-                "division": "Autonomous Meta-Dev",
-                "amount": 0.0,
-                "status": "Pending",
-                "details": "Reduces multi-agent latency by 42%. 184/184 tests passed.",
-            },
-            {
-                "id": "appr_re_01",
-                "title": "Execute Austin Logistics Park Closing Memorandum",
-                "division": "Commercial Real Estate",
-                "amount": 84000.0,
-                "status": "Pending",
-                "details": "Underwritten at 21.4% 5-Yr IRR. $84,000 Sponsor fee due.",
-            },
-        ]
+.app-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
 
-        self.supabase_url = os.getenv("SUPABASE_URL", "")
-        self.supabase_key = os.getenv("SUPABASE_KEY", "")
-        self.client: Optional[Client] = None
-        if self.supabase_url and self.supabase_key and create_client is not None:
-            self.client = create_client(self.supabase_url, self.supabase_key)
-            self.ensure_schema()
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
 
-    def ensure_schema(self) -> None:
-        if not self.client:
-            return
-        schema_sql = [
-            """
-            create table if not exists agents (
-                id uuid primary key default gen_random_uuid(),
-                name text not null,
-                division text not null,
-                role text not null,
-                status text default 'active',
-                metadata jsonb default '{}'::jsonb,
-                created_at timestamptz default now()
-            );
-            """,
-            """
-            create table if not exists tasks (
-                id uuid primary key default gen_random_uuid(),
-                title text not null,
-                division text not null,
-                status text default 'queued',
-                owner text,
-                payload jsonb default '{}'::jsonb,
-                created_at timestamptz default now()
-            );
-            """,
-            """
-            create table if not exists approvals (
-                id uuid primary key default gen_random_uuid(),
-                approval_id text not null unique,
-                title text not null,
-                division text not null,
-                amount numeric default 0,
-                status text default 'pending',
-                details text,
-                created_at timestamptz default now()
-            );
-            """,
-            """
-            create table if not exists conversations (
-                id uuid primary key default gen_random_uuid(),
-                party text not null,
-                channel text not null,
-                transcript text not null,
-                metadata jsonb default '{}'::jsonb,
-                created_at timestamptz default now()
-            );
-            """,
-            """
-            create table if not exists artifacts (
-                id uuid primary key default gen_random_uuid(),
-                artifact_type text not null,
-                title text not null,
-                content jsonb default '{}'::jsonb,
-                owner text,
-                created_at timestamptz default now()
-            );
-            """,
-            """
-            create extension if not exists vector;
-            create table if not exists agent_memories (
-                id uuid primary key default gen_random_uuid(),
-                agent_name text not null,
-                department text not null,
-                project text default 'enterprise',
-                security_tier text default 'internal',
-                embedding vector(1536),
-                metadata jsonb default '{}'::jsonb,
-                created_at timestamptz default now()
-            );
-            """,
-            """
-            create index if not exists idx_agent_memories_department on agent_memories (department);
-            create index if not exists idx_agent_memories_project on agent_memories (project);
-            """,
-        ]
-        for statement in schema_sql:
-            try:
-                self.client.rpc("exec_sql", {"query": statement}).execute()  # type: ignore[attr-defined]
-            except Exception:
-                pass
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.15em;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
 
-    async def get_all_ventures(self) -> List[Dict[str, Any]]:
-        return self.ventures_table
+h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+}
 
-    async def add_venture(self, venture: Dict[str, Any]) -> Dict[str, Any]:
-        self.ventures_table.insert(0, venture)
-        return venture
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-    async def get_pending_approvals(self) -> List[Dict[str, Any]]:
-        return [item for item in self.approvals_table if item["status"] == "Pending"]
+.live-pill,
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
-    async def resolve_approval(self, approval_id: str, approved: bool, feedback: Optional[str] = None) -> Dict[str, Any]:
-        for item in self.approvals_table:
-            if item["id"] == approval_id:
-                item["status"] = "Approved" if approved else "Rejected"
-                item["ceo_feedback"] = feedback
-                return item
-        return {"error": "approval_not_found"}
+.live-pill {
+  background: rgba(74, 222, 128, 0.18);
+  color: #d9fbe7;
+  border: 1px solid rgba(74, 222, 128, 0.36);
+}
 
-    async def query_vector_memory(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-        if self.client:
-            try:
-                result = self.client.table("agent_memories").select("*").limit(limit).execute()
-                rows = getattr(result, "data", []) or []
-                if rows:
-                    return rows
-            except Exception:
-                pass
-        return [
-            {"title": "EVFTA Customs Form EUR.1 Guidelines", "similarity": 0.94},
-            {"title": "KRAS-G12D Computational Binding Model", "similarity": 0.89},
-            {"title": "Austin Industrial Zone Feasibility", "similarity": 0.87},
-            {"title": "Executive Brain Memory Search", "similarity": 0.82},
-        ][:limit]
+.live-pill.demo {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fef3c7;
+  border-color: rgba(251, 191, 36, 0.28);
+}
 
-    async def record_agent_memory(self, agent_name: str, department: str, project: str, metadata: Dict[str, Any], embedding: Optional[List[float]] = None) -> Dict[str, Any]:
-        item = {
-            "agent_name": agent_name,
-            "department": department,
-            "project": project,
-            "metadata": metadata,
-        }
-        if embedding:
-            item["embedding"] = embedding
-        self.memory_store.append(item)
-        return item
+.badge {
+  background: rgba(74, 222, 128, 0.18);
+  color: #d9fbe7;
+  border: 1px solid rgba(74, 222, 128, 0.36);
+}
 
-    async def get_agents(self) -> List[Dict[str, Any]]:
-        return [
-            {"name": "Dr. Evelyn Vance", "division": "Chief of Staff", "role": "Executive Assistant", "status": "active"},
-            {"name": "Apex Research Lab", "division": "Scientific Research", "role": "Deep Tech", "status": "active"},
-            {"name": "Medical Board", "division": "Medical Advisory", "role": "Clinical Review", "status": "active"},
-        ]
+.badge.warn {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fef3c7;
+  border-color: rgba(251, 191, 36, 0.28);
+}
 
-    async def add_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        self.memory_store.append({"type": "task", **task})
-        return task
+.badge.info,
+.badge.ghost {
+  background: rgba(96, 165, 250, 0.12);
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.28);
+}
 
+.refresh-btn,
+.tiny {
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
 
-brain_db = EnterpriseBrainDB()
+.refresh-btn {
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  padding: 0.7rem 1rem;
+  color: white;
+  font-weight: 700;
+}
+
+.refresh-btn:hover,
+.tiny:hover {
+  transform: translateY(-1px);
+}
+
+.stats-grid,
+.hero-grid,
+.lower-grid {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.hero-grid {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.lower-grid {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
+.stat-card,
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  box-shadow: 0 18px 30px rgba(2, 6, 23, 0.28);
+}
+
+.stat-card {
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.stat-card strong {
+  font-size: clamp(1.3rem, 2vw, 2.1rem);
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.office-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.desk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.desk strong,
+.memory-item strong,
+.approval-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.desk small,
+.memory-meta,
+.approval-item small {
+  color: var(--muted);
+}
+
+.signal {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.04);
+}
+
+.signal-green { background: var(--green); }
+.signal-amber { background: var(--amber); }
+.signal-blue { background: var(--blue); }
+.signal-red { background: var(--red); }
+
+.brain-map {
+  position: relative;
+  height: 220px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle, rgba(96, 165, 250, 0.2), transparent 38%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(7, 16, 27, 0.9));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.brain-map::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08), rgba(139, 92, 246, 0.12));
+}
+
+.node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #def1ff;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.24), rgba(10, 20, 32, 0.9));
+  border: 1px solid rgba(96, 165, 250, 0.38);
+  box-shadow: 0 0 18px rgba(96, 165, 250, 0.18);
+  animation: pulse 2.6s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.node:nth-child(1) { left: 24%; top: 26%; }
+.node:nth-child(2) { left: 28%; top: 68%; }
+.node:nth-child(3) { left: 52%; top: 32%; }
+.node:nth-child(4) { left: 72%; top: 44%; }
+.node:nth-child(5) { left: 62%; top: 76%; }
+.node:nth-child(6) { left: 40%; top: 52%; }
+
+@keyframes pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.07); }
+}
+
+.stack-list,
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.approval-item,
+.memory-item {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.52);
+  padding: 12px 14px;
+}
+
+.approval-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tiny {
+  padding: 0.44rem 0.7rem;
+  color: white;
+  font-size: 0.72rem;
+}
+
+.tiny.success { background: rgba(34, 197, 94, 0.18); border: 1px solid rgba(34, 197, 94, 0.42); }
+.tiny.danger { background: rgba(239, 68, 68, 0.16); border: 1px solid rgba(239, 68, 68, 0.42); }
+.tiny.neutral { background: rgba(148, 163, 184, 0.14); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+.memory-item strong {
+  margin-bottom: 8px;
+}
+
+.memory-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.7rem;
+}
+
+.alert {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(127, 29, 29, 0.26);
+  color: #fecaca;
+}
+
+.loading-panel {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.empty-state {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .hero-grid,
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .approval-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

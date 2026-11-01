@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : window.location.origin);
 
 const initialSkeleton = [
   { name: 'Scientific Research', signal: 'green', status: 'active' },
@@ -56,15 +58,12 @@ function App() {
   }, []);
 
   const cards = useMemo(() => {
-    if (!summary) {
-      return [];
-    }
-
+    if (!summary) return [];
     return [
-      { label: 'Revenue MTD', value: `$${summary.revenue_mtd.toLocaleString()}` },
-      { label: 'Treasury', value: `$${summary.treasury.toLocaleString()}` },
-      { label: 'Active Agents', value: `${summary.active_agents}` },
-      { label: 'Threats Blocked', value: `${summary.threats_blocked}` },
+      { label: 'Revenue MTD', value: `$${Number(summary.revenue_mtd || 0).toLocaleString()}` },
+      { label: 'Treasury', value: `$${Number(summary.treasury || 0).toLocaleString()}` },
+      { label: 'Active agents', value: `${summary.active_agents || 0}` },
+      { label: 'Threats blocked', value: `${summary.threats_blocked || 0}` },
     ];
   }, [summary]);
 
@@ -72,11 +71,13 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Enterprise Control Layer</p>
+          <p className="eyebrow">Enterprise control layer</p>
           <h1>Apex Executive</h1>
         </div>
         <div className="topbar-actions">
-          <span className="live-pill">System Live</span>
+          <span className={`live-pill ${summary?.data_mode === 'local' ? 'demo' : 'live'}`}>
+            {summary?.data_mode === 'local' ? 'Local mode' : 'Live mode'}
+          </span>
           <button onClick={fetchDashboard} className="refresh-btn">Refresh</button>
         </div>
       </header>
@@ -117,11 +118,11 @@ function App() {
 
             <article className="panel brain-panel">
               <div className="panel-header">
-                <h2>Shared Memory Graph</h2>
+                <h2>Shared memory graph</h2>
                 <span className="badge ghost">Neural</span>
               </div>
               <div className="brain-map">
-                {["CEO", "Legal", "Research", "Cyber", "Trade", "Finance"].map((node, idx) => (
+                {['CEO', 'Legal', 'Research', 'Cyber', 'Trade', 'Finance'].map((node, idx) => (
                   <span className="node" key={node} style={{ '--delay': `${idx * 0.18}s` }}>
                     {node}
                   </span>
@@ -133,7 +134,7 @@ function App() {
           <section className="lower-grid">
             <article className="panel">
               <div className="panel-header">
-                <h2>Approval Queue</h2>
+                <h2>Approval queue</h2>
                 <span className="badge warn">{approvals.length} pending</span>
               </div>
               <div className="stack-list">
@@ -159,7 +160,7 @@ function App() {
 
             <article className="panel">
               <div className="panel-header">
-                <h2>Brain Memory Search</h2>
+                <h2>Brain memory search</h2>
                 <span className="badge info">Vector</span>
               </div>
               <div className="memory-list">
@@ -168,7 +169,7 @@ function App() {
                     <strong>{item.title}</strong>
                     <div className="memory-meta">
                       <span>{item.department || 'enterprise'}</span>
-                      <span>{item.similarity ? `${item.similarity.toFixed(2)} match` : 'cached'}</span>
+                      <span>{item.similarity ? `${Number(item.similarity).toFixed(2)} match` : 'cached'}</span>
                     </div>
                   </div>
                 ))}
