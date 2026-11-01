@@ -4,7 +4,7 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   (window.location.hostname === 'localhost'
     ? 'http://localhost:8000'
-    : 'https://apex-executive.onrender.com');
+    : 'https://apex-executive-backend.onrender.com');
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -16,10 +16,11 @@ function App() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/`);
+      const response = await fetch(`${API_URL}/health`);
       if (!response.ok) {
         throw new Error('Unable to reach backend');
       }
+
       const data = await response.json();
       setSummary(data);
     } catch (err) {
@@ -33,15 +34,6 @@ function App() {
     fetchSummary();
   }, []);
 
-  const statCards = summary
-    ? [
-        { label: 'Company', value: summary.company || 'Apex Executive' },
-        { label: 'Status', value: summary.status || 'Online' },
-        { label: 'Version', value: summary.version || 'N/A' },
-        { label: 'Firewall', value: summary.firewall || 'Active' },
-      ]
-    : [];
-
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -50,7 +42,7 @@ function App() {
           <h1>Apex Executive</h1>
         </div>
         <button onClick={fetchSummary} className="refresh-btn">
-          Refresh
+          {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </header>
 
@@ -59,37 +51,16 @@ function App() {
       {loading ? (
         <div className="loading-panel">Loading executive overview…</div>
       ) : (
-        <>
-          <section className="stats-grid">
-            {statCards.map((card) => (
-              <article className="stat-card" key={card.label}>
-                <span>{card.label}</span>
-                <strong>{card.value}</strong>
-              </article>
-            ))}
-          </section>
-
-          <section className="panel-grid">
-            <article className="panel">
-              <h2>Operating status</h2>
-              <ul className="list">
-                <li>AI executive cockpit online</li>
-                <li>Human approval required for critical actions</li>
-                <li>Risk controls enabled by default</li>
-              </ul>
-            </article>
-
-            <article className="panel">
-              <h2>Execution flow</h2>
-              <ul className="list">
-                <li>Intake &amp; policy scan</li>
-                <li>Scenario risk review</li>
-                <li>Leadership approval queue</li>
-                <li>Action log and audit trail</li>
-              </ul>
-            </article>
-          </section>
-        </>
+        <section className="panel-grid">
+          <article className="panel">
+            <h2>Backend status</h2>
+            <ul className="list">
+              <li>Service: {summary?.service || 'Unknown'}</li>
+              <li>Status: {summary?.status || 'Unknown'}</li>
+              <li>Version: {summary?.version || 'Unknown'}</li>
+            </ul>
+          </article>
+        </section>
       )}
     </div>
   );
