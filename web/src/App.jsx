@@ -4,7 +4,7 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   (window.location.hostname === 'localhost'
     ? 'http://localhost:8000'
-    : window.location.origin);
+    : 'https://apex-executive.onrender.com');
 
 function App() {
   const [loading, setLoading] = useState(true);
