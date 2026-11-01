@@ -1,13 +1,34 @@
 services:
   - type: web
     name: apex-executive-web
-    runtime: node
-    rootDir: web
+    runtime: docker
+    rootDir: .
+    dockerfilePath: ./Dockerfile
     region: oregon
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm run preview -- --host 0.0.0.0 --port 10000
+    healthCheckPath: /
+
+  - type: web
+    name: apex-executive-backend
+    runtime: python
+    rootDir: backend
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
     healthCheckPath: /
     envVars:
-      - key: VITE_API_URL
-        value: https://apex-executive-backend.onrender.com
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CEO_SECRET_TOKEN
+        sync: false
